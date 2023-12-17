@@ -1,0 +1,121 @@
+---
+title: "PEC 2 Anàlisis de Dades Òmiques"
+author: "Sheddad Kaid-Salah Ferrón"
+date: "`r format(Sys.Date())`"
+params:
+  printcode:
+    label: "Display Code:"
+    value: TRUE # or set it to FALSE
+  data:
+    label: "Raw data .fastq:"
+    value: S07_Ves02_read1.fastq
+    input: file
+output:
+   html_document:
+    code_folding: hide
+    toc: true
+    toc_float: yes
+    toc_depth: 3
+    theme: flatly
+    highlight: textmate
+    number_sections: true
+    csl: vancouver.csl
+editor_options: 
+  chunk_output_type: console
+bibliography: PEC2_ADO_Ref.bib
+
+---
+
+```{r class.source = 'fold-hide', setup, include=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+# Introducció i Objectius
+
+## Preparació del sistema: directoris i paquets
+
+Oraganitzem el projecte fent servir directoris per organitzar les dades i els 
+resultats.  
+
+
+```{r directoris}
+workingDir <- getwd()
+dataDir <- file.path(workingDir, "data")
+resultsDir <- file.path(workingDir, "results")
+```
+
+Instalem els paquets requerits en cas que no ho estiguin.
+Per tal que no ho faci cada vegada farme servir la funció **installifnot**. 
+REF:
+
+```{r paquets, eval = TRUE}
+# De moment no l'executem perquè no ens ho faci cada vegada
+if (!require(BiocManager)) install.packages("BiocManager")
+
+installifnot <- function (pkg){
+  if (!require(pkg, character.only=T)){
+    BiocManager::install(pkg)
+  }
+}
+# BiocManager::install() # Actualitza paquets instal·lats
+installifnot("pd.mogene.1.0.st.v1")
+installifnot("mogene10sttranscriptcluster.db")
+installifnot("oligo")
+installifnot("limma")
+installifnot("Biobase")
+installifnot("arrayQualityMetrics")
+installifnot("genefilter")
+installifnot("annotate")
+installifnot("xtable")
+installifnot("gplots")
+installifnot("GOstats")
+```
+
+## Lectura de les dades
+
+Les mostres estan agrupades en dos grups, els ratolins a què se'ls ha induït
+una hipotensió aguda i als qui no.
+Emmagatzemem aquesta informació al fitxer **targets.csv**.
+
+```{r llegirTargets}
+require(Biobase)
+# Llegim l'arxiu targets.csv en un dataframe
+targetsDF <- read.csv(file=file.path(dataDir,"targets.csv"), header = TRUE, sep=",") 
+# Definim variables pels gràfics
+sampleNames <- as.character(targetsDF$ShortName)
+sampleColor <- as.character(targetsDF$Colors)
+# Creem un objecte AnnotatedDataFrame
+targets <- AnnotatedDataFrame(targetsDF)
+```
+
+Ara llegim els arxius .CEL fent servir la informació continguda en el data frame
+**targets**
+```{r llegirCELFiles}
+# Fitxers .CEL amb la info que hem tret de l'arxiu "target.csv"
+CELfiles <- targetsDF$fileName
+rawData <- read.celfiles(file.path(dataDir, CELfiles), phenoData=targets)
+rawData
+```
+
+# Mètodes
+
+# Resultats {.tabset .tabset-fade .tabset-pills}
+
+# Discusió
+
+# Referències
+
+[@GDS1251]
+
