@@ -23,7 +23,6 @@ output:
 editor_options: 
   chunk_output_type: console
 bibliography: PEC2_ADO_Ref.bib
-
 ---
 
 ```{r class.source = 'fold-hide', setup, include=FALSE}
@@ -115,39 +114,53 @@ rawData
 ## Descàrrega de dades amb `GEOquery`
 
 ```{r filtrado}
-# Carreguem la llibreria
+# Carreguem la llibreria GEOquery
 require(GEOquery)
-# Amb l'identificador de l'estudi descarreguem les dades de GEO
-gse <- getGEO("GSE2401", GSEMatrix=TRUE, AnnotGPL=TRUE)
-class(gse)
-names(gse)
-length(gse)
-gse[[1]]
-esetFromGEO <- gse[[1]]
-head(exprs(esetFromGEO))
 
+# Amb l'identificador GSE de l'estudi descarreguem les dades de GEO
+#gse <- getGEO("GSE2401", GSEMatrix=TRUE, AnnotGPL=TRUE)
+#gseEset <- gse[[1]]
+#head(exprs(gseEset))
+
+# Amb l'identificador GDS de l'estudi descarreguem les dades de GEO
 gds <- getGEO("GDS1251", GSEMatrix=TRUE, AnnotGPL=TRUE)
-
+# Tipus d'objecte
+class(gds)
+head(Meta(gds))
+# Asignem l'ExpressionSet
+gdsEset <- GDS2eSet(gds,do.log2=FALSE)
+gdsEset
+exprsGdsEset <- exprs(gdsEset)
+head(exprsGdsEset)
 ```
 
 ## Exploració i control de qualitat {.tabset .tabset-fade .tabset-pills}  
 
 ### Funcions "ad-hoc"
 
-```{r graficosCalidad}
-# Boxplot
+```{r graficsQualitat}
+# Boxplot RAW data
 boxplot(rawData, which="all",las=2, main="Intensity distribution of RAW data", 
+        cex.axis=0.6, col=sampleColor, names=sampleNames)
+
+# Boxplot GDS Eset
+boxplot(gdsEset, which="all",las=2, main="Intensity distribution of GDS Eset", 
         cex.axis=0.6, col=sampleColor, names=sampleNames)
 ```
 
-```{r graficosCalidad2}
-# HIERARQUICAL CLUSTERING
+```{r graficsQualitat2}
+# Hierarquical Clustering RAW data
 clust.euclid.average <- hclust(dist(t(exprs(rawData))),method="average")
-plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering of RawData", cex=0.7,  hang=-1)
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering del RawData", cex=0.7,  hang=-1)
+
+# Hierarquical Clustering GDS Eset
+clust.euclid.average <- hclust(dist(t(exprs(gdsEset))),method="average")
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering de GDS data", cex=0.7,  hang=-1)
 ```
 
-```{r graficosCalidad3}
-# Anaàlisis de Components Principals
+```{r graficsQualitat3}
+# Anàlisis de Components Principals 
+# Definició de la funció
 plotPCA <- function ( X, labels=NULL, colors=NULL, dataDesc="", scale=FALSE, formapunts=NULL, myCex=0.8,...)
 {
   pcX<-prcomp(t(X), scale=scale) # o prcomp(t(X))
@@ -162,7 +175,11 @@ plotPCA <- function ( X, labels=NULL, colors=NULL, dataDesc="", scale=FALSE, for
   title(paste("Plot of first 2 PCs for expressions in", dataDesc, sep=" "), cex=0.8)
 }
 
+# Raw data
 plotPCA(exprs(rawData), labels=sampleNames, dataDesc="raw data", colors=sampleColor,
+        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
+# GDS Eset
+plotPCA(exprs(gdsEset), labels=sampleNames, dataDesc="GDS Eset", colors=sampleColor,
         formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
 ```
 
@@ -196,19 +213,25 @@ require(arrayQualityMetrics)
 # Evitem tornar-lo a executar cada vegada que s'executa l'script.
 rerun <- FALSE
 if(rerun){
-  arrayQualityMetrics(esetFromGEO,  reporttitle="QC_RawData", force=TRUE)
+  # Raw Data
+  arrayQualityMetrics(rawData,  reporttitle="QC_RawData", force=TRUE)
+  # GDS Eset
+  arrayQualityMetrics(gdsEset,  reporttitle="QC_GDSEset", force=TRUE)
 }
 ```
 
 ## Normalització
 
-Fem servir el mètode RMA
+Fem servir el mètode RMA per normalitzar les dades Raw Data.
 
 ```{r normalitzacio}
-eset <- rma(rawData)
-write.exprs(eset, file.path(resultsDir, "NormData.txt"))
-eset
+# Normalitzem les dades Raw Data
+myEset <- rma(rawData)
+write.exprs(myEset, file.path(resultsDir, "NormData.txt"))
+myEset
 ```
+
+Les dades descarregades amb GDS ja estan normalitzades
 
 ## Filtratge
 
@@ -216,24 +239,27 @@ eset
 
 ```{r filtrado }
 require(genefilter)
-annotation(eset) <- "rae230a.db"
-eset_filtered <- nsFilter(eset, var.func=IQR,
+# Farem la base de dades rae230a.db que és la que correspon a la plataforma 
+# GPL0341 d'Affymetrix (microarray)
+annotation(myEset) <- "rae230a.db"
+eset_filtered <- nsFilter(myEset, var.func=IQR,
          var.cutoff=0.75, var.filter=TRUE, require.entrez = TRUE,
          filterByQuantile=TRUE)
-#NUMBER OF GENES REMOVED
+# Nombre de gens filtrats (esborrats)
 print(eset_filtered)
 
-#NUMBER OF GENES IN
+# Nombre de Gens que resten
 print(eset_filtered$eset)
 ```
 
 La matriz de datos filtrados se extrae del objeto \`filtered$eset$ y se utilizará en los pasos siguientes.
 
 ```{r Datosfiltrados}
-#filteredEset <- eset_filtered$eset
-filteredEset <- eset
-#filteredData <- exprs(filteredEset)
+filteredEset <- eset_filtered$eset
+filteredEset <- myEset
 filteredData <- exprs(filteredEset)
+filteredData <- exprs(myEset)
+head(filteredData)
 #colnames(filteredData) <- pData(eset_filtered$eset)$ShortName
 colnames(filteredData) <- pData(filteredEset)$ShortName
 ```
@@ -263,7 +289,7 @@ A continuación la matriz de contraste
 ```{r linearModel2}
 #COMPARISON
 cont.matrix1 <- makeContrasts( 
-        Hypotension.vs.Normal = Hypotesion-Normal,
+        Hypotension.vs.Control = Hypotesion-Control,
         levels = design)
 comparisonName <- "Efecte de la hipotensió induida"
 print(cont.matrix1)
@@ -284,7 +310,7 @@ El resultado del análisis se encuentra en el objeto `lmfit` y puede extraerse c
 Recordemos que la instrucción `topTable` puede aplicar un filtro automàtico, basado en dos criterios distintos, "log fold change" y "p.value". En este caso retenemos únicamente los genes con un "log-fold-change" mayor de 3 y un p-valor ajustado inferior a 0.05
 
 ```{r results1}
-topTab <-  topTable (fit.main1, number=nrow(fit.main1), coef="Hypotension.vs.Normal", adjust="fdr", lfc=1)
+topTab <-  topTable (fit.main1, number=nrow(fit.main1), coef="Hypotension.vs.Control", adjust="fdr",lfc=1, p.value=0.05)
 dim(topTab)
 head(topTab)
 ```
@@ -299,7 +325,7 @@ Obtenemos los identificadores ENTREZ y GENE SYMBOL correspondientes a los probes
 ```{r}
 require(rae230a.db)
 keytypes(rae230a.db)
-anotaciones <- AnnotationDbi::select (rae230a.db, keys=rownames(filteredData), columns=c("ENTREZID", "SYMBOL"))
+anotaciones <- AnnotationDbi::select (rae230a.db, keys=rownames(filteredData), columns=c("ENTREZID", "SYMBOL", "GENENAME"))
 ```
 
 Añadimos las columnas de anotaciones a la "topTable".
@@ -312,9 +338,73 @@ topTabAnotada <- topTab %>%
   mutate(PROBEID=rownames(topTab)) %>%
   left_join(anotaciones) %>% 
   arrange(P.Value) %>%
-  select(7,8,9, 1:6)
+  select(7,8,9, 1:6, 10)
 
 head(topTabAnotada)
+```
+
+## Visualización de resultados (1): Volcano Plot
+
+```{r volcanoPlot}
+# Anomenem amb SYMBOL els gens del model. Fem servir la base de dades 
+# d'anotacions rae230a.db
+genenames <- AnnotationDbi::select(rae230a.db, 
+                    rownames(fit.main1), c("SYMBOL"))$SYMBOL
+volcanoplot(fit.main1, highlight=10, names=genenames, 
+            main = paste("Gens diferencialment expresats", colnames(cont.matrix1), sep="\n"))
+abline(v = c(-3, 3))
+
+# El guardem a un pdf
+pdf(file.path(resultsDir,"VolcanoPlot.pdf"))
+volcanoplot(fit.main1, highlight = 10, names = genenames, 
+            main = paste("Gens diferencialment expresats", colnames(cont.matrix1), sep = "\n"))
+abline(v = c(-3, 3))
+dev.off()
+```
+
+## Visualización de resultados (2): Heatmaps
+
+```{r heatmap}
+selectedRows <- rownames(filteredData) %in% rownames(topTab)
+selectedData <- filteredData[selectedRows,]
+
+#HEATMAP PLOT
+my_palette <- colorRampPalette(c("blue", "red"))(n = 299)
+library(gplots)
+heatmap.2(selectedData,
+          Rowv=TRUE,
+          Colv=TRUE,
+          main="HeatMap Induced.vs.WT FC>=1",
+          scale="row",
+          col=my_palette,
+          sepcolor="white",
+          sepwidth=c(0.05,0.05),
+          cexRow=0.5,
+          cexCol=0.9,
+          key=TRUE,
+          keysize=1.5,
+          density.info="histogram",
+          ColSideColors=c(rep("blue",5),rep("red",4)),
+          tracecol=NULL,
+          srtCol=30)
+pdf(file.path(resultsDir,"Heatmap.pdf"))
+heatmap.2(selectedData,
+          Rowv=TRUE,
+          Colv=TRUE,
+          main="HeatMap Induced.vs.WT FC>=3",
+          scale="row",
+          col=my_palette,
+          sepcolor="white",
+          sepwidth=c(0.05,0.05),
+          cexRow=0.5,
+          cexCol=0.9,
+          key=TRUE,
+          keysize=1.5,
+          density.info="histogram",
+          ColSideColors=c(rep("red",4),rep("blue",4)),
+          tracecol=NULL,
+          srtCol=30)
+dev.off()
 ```
 
 

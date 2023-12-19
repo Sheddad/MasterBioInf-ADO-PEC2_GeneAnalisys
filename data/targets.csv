@@ -1,10 +1,10 @@
 fileName,groups,ShortName,Colors
+GSM45184.CEL,Control,84_Norm,blue
+GSM45186.CEL,Control,86_Norm,blue
+GSM45187.CEL,Control,87_Norm,blue
+GSM45189.CEL,Control,89_Norm,blue
+GSM45193.CEL,Control,93_Norm,blue
 GSM45188.CEL,Hypotesion,88_Hypo,red
 GSM45190.CEL,Hypotesion,90_Hypo,red
 GSM45191.CEL,Hypotesion,91_Hypo,red
 GSM45192.CEL,Hypotesion,92_Hypo,red
-GSM45184.CEL,Normal,84_Norm,blue
-GSM45186.CEL,Normal,86_Norm,blue
-GSM45187.CEL,Normal,87_Norm,blue
-GSM45189.CEL,Normal,89_Norm,blue
-GSM45193.CEL,Normal,93_Norm,blue
