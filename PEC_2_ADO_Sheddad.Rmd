@@ -43,9 +43,12 @@ opts_knit$set(width=75)
 
 # Introducció i Objectius
 
+# Mètodes
+
+
 ## Preparació del sistema: directoris i paquets
 
-Oraganitzem el projecte fent servir directoris per organitzar les dades i els 
+Oraganitzem el projecte fent servir directoris per ordenar les dades i els 
 resultats.  
 
 
@@ -80,20 +83,25 @@ installifnot("annotate")
 installifnot("xtable")
 installifnot("gplots")
 installifnot("GOstats")
-
 installifnot("GEOquery")
 ```
 
-## Lectura de les dades
+## Lectura de les dades {.tabset .tabset-fade .tabset-pills}  
 
+### Dades crues (Raw Data)
+
+ 
 Les mostres estan agrupades en dos grups, els ratolins a què se'ls ha induït
-una hipotensió aguda i als qui no.
-Emmagatzemem aquesta informació al fitxer **targets.csv**.
+una hipotensió aguda (Hypotension) i als qui no (Control).
+Emmagatzemem aquesta informació al fitxer *targets.csv*.
 
 ```{r llegirTargets}
 require(Biobase)
 # Llegim l'arxiu targets.csv en un dataframe
 targetsDF <- read.csv(file=file.path(dataDir,"targets.csv"), header = TRUE, sep=",") 
+# Visualitzem l'arxiu targets
+targetsDF
+
 # Definim variables pels gràfics
 sampleNames <- as.character(targetsDF$ShortName)
 sampleColor <- as.character(targetsDF$Colors)
@@ -101,8 +109,15 @@ sampleColor <- as.character(targetsDF$Colors)
 targets <- AnnotatedDataFrame(targetsDF)
 ```
 
-Ara llegim els arxius .CEL fent servir la informació continguda en el data frame
-**targets**
+Extraurem les dades del arxius .CEL que ens hem descarregat i hem guardat al 
+fitxer *dades*.  
+
+Llegim els arxius .CEL fent servir la informació continguda en el data frame
+*targets*.  
+Gurdarem les dades en l'objecte *rawData* que és del tipus *ExpressionFeatureSet*,
+un tipus especial *d'ExpressionSet*.
+
+
 ```{r llegirCELFiles}
 # Fitxers .CEL amb la info que hem tret de l'arxiu "target.csv"
 CELfiles <- targetsDF$fileName
@@ -110,10 +125,17 @@ rawData <- read.celfiles(file.path(dataDir, CELfiles), phenoData=targets)
 rawData
 ```
 
+### Descàrrega de dades amb `GEOquery`
 
-## Descàrrega de dades amb `GEOquery`
+Tot i que he decidit fer tot l'estudi amb les dades crues (raw data) hi ha 
+l'opció d'extreure les dades directament de la base de dades *Gene Expression 
+Omnibus* [GEO](https://www.ncbi.nlm.nih.gov/geo/) fent servir la llibreria 
+*GEOquery* de *Biobase (Bioconductor)*.  
+Una de les ventatges és que aquestes dades ja estan normalitzades.  
+  
+Aquesta és la manera d'extreure les dades amb l'identificador GDS.
 
-```{r filtrado}
+```{r geo}
 # Carreguem la llibreria GEOquery
 require(GEOquery)
 
@@ -129,14 +151,20 @@ class(gds)
 head(Meta(gds))
 # Asignem l'ExpressionSet
 gdsEset <- GDS2eSet(gds,do.log2=FALSE)
+# Veiem l'ExpressionSet
 gdsEset
+# Veiem les dades que conté
 exprsGdsEset <- exprs(gdsEset)
 head(exprsGdsEset)
 ```
 
 ## Exploració i control de qualitat {.tabset .tabset-fade .tabset-pills}  
 
+Per fer l'exploració de dades farem servir primerament funcions *ad-hoc*
+
 ### Funcions "ad-hoc"
+
+#### BOXPLOT
 
 ```{r graficsQualitat}
 # Boxplot RAW data
@@ -144,19 +172,25 @@ boxplot(rawData, which="all",las=2, main="Intensity distribution of RAW data",
         cex.axis=0.6, col=sampleColor, names=sampleNames)
 
 # Boxplot GDS Eset
-boxplot(gdsEset, which="all",las=2, main="Intensity distribution of GDS Eset", 
-        cex.axis=0.6, col=sampleColor, names=sampleNames)
+#boxplot(gdsEset, which="all",las=2, main="Intensity distribution of GDS Eset", 
+#        cex.axis=0.6, col=sampleColor, names=sampleNames)
 ```
+
+#### Agrupació Jeràrquica
 
 ```{r graficsQualitat2}
 # Hierarquical Clustering RAW data
 clust.euclid.average <- hclust(dist(t(exprs(rawData))),method="average")
-plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering del RawData", cex=0.7,  hang=-1)
+plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering del
+     RawData", cex=0.7,  hang=-1)
 
 # Hierarquical Clustering GDS Eset
-clust.euclid.average <- hclust(dist(t(exprs(gdsEset))),method="average")
-plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering de GDS data", cex=0.7,  hang=-1)
+#clust.euclid.average <- hclust(dist(t(exprs(gdsEset))),method="average")
+#plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering de
+#GDS data", cex=0.7,  hang=-1)
 ```
+
+#### Anàlisis de Components Principals (PCA)
 
 ```{r graficsQualitat3}
 # Anàlisis de Components Principals 
@@ -179,12 +213,15 @@ plotPCA <- function ( X, labels=NULL, colors=NULL, dataDesc="", scale=FALSE, for
 plotPCA(exprs(rawData), labels=sampleNames, dataDesc="raw data", colors=sampleColor,
         formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
 # GDS Eset
-plotPCA(exprs(gdsEset), labels=sampleNames, dataDesc="GDS Eset", colors=sampleColor,
-        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
+#plotPCA(exprs(gdsEset), labels=sampleNames, dataDesc="GDS Eset", colors=sampleColor,
+#        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
 ```
 
-```{r graficosCalidadAPDF}
-# Ho gravemn a un arxiu pdf al directori "results"
+
+Guardem els anàlisi de qualitat en un arxiu PDF en el directori *results*  
+
+```{r graficsQualitatAPDF}
+# Ho gravem a un arxiu pdf al directori "results"
 pdf(file.path(resultsDir, "QCPlots_Raw.pdf"))
 boxplot(rawData, which="all",las=2, main="Intensity distribution of RAW data", 
         cex.axis=0.6, col=sampleColor, names=sampleNames)
@@ -216,13 +253,13 @@ if(rerun){
   # Raw Data
   arrayQualityMetrics(rawData,  reporttitle="QC_RawData", force=TRUE)
   # GDS Eset
-  arrayQualityMetrics(gdsEset,  reporttitle="QC_GDSEset", force=TRUE)
+  #arrayQualityMetrics(gdsEset,  reporttitle="QC_GDSEset", force=TRUE)
 }
 ```
 
 ## Normalització
 
-Fem servir el mètode RMA per normalitzar les dades Raw Data.
+Fem servir el mètode RMA per normalitzar les dades Raw Data.  
 
 ```{r normalitzacio}
 # Normalitzem les dades Raw Data
@@ -231,13 +268,12 @@ write.exprs(myEset, file.path(resultsDir, "NormData.txt"))
 myEset
 ```
 
-Les dades descarregades amb GDS ja estan normalitzades
+Cal recordad que les dades descarregades amb GDS ja estan normalitzades.
 
 ## Filtratge
 
-???
 
-```{r filtrado }
+```{r filtratge}
 require(genefilter)
 # Farem la base de dades rae230a.db que és la que correspon a la plataforma 
 # GPL0341 d'Affymetrix (microarray)
@@ -252,26 +288,24 @@ print(eset_filtered)
 print(eset_filtered$eset)
 ```
 
-La matriz de datos filtrados se extrae del objeto \`filtered$eset$ y se utilizará en los pasos siguientes.
+Extraiem la matriu de dades filtrades que farem servir per continuar l'estudi.
 
-```{r Datosfiltrados}
+```{r Dadesflitrades}
 filteredEset <- eset_filtered$eset
-filteredEset <- myEset
 filteredData <- exprs(filteredEset)
-filteredData <- exprs(myEset)
-head(filteredData)
-#colnames(filteredData) <- pData(eset_filtered$eset)$ShortName
+# Assignem el nom de les columnes els que hem definit a l'arxiu 'targets.csv'
 colnames(filteredData) <- pData(filteredEset)$ShortName
+# Visualitzem les primeres files
+head(filteredData)
 ```
 
 
-# Mètodes
+## Selecció de gens
 
-## Selección de genes
+Construïm una matriu de disseny i una de contrast per l'anàlisis amb un model 
+lineal.
 
-Construimos un modelo lineal, es decir una matriz de diseño y una de contrastes, para el análisis.
-
-Primero la matriz de diseño
+**Matriu de disseny**
 
 ```{r linearModel}
 library(limma)
@@ -282,9 +316,8 @@ colnames(design) <- levels(lev)
 rownames(design) <- sampleNames
 print(design)
 ```
-
-
-A continuación la matriz de contraste
+  
+**Matriu de contrast**
 
 ```{r linearModel2}
 #COMPARISON
@@ -295,37 +328,53 @@ comparisonName <- "Efecte de la hipotensió induida"
 print(cont.matrix1)
 ```
 
-Estimamos el modelo
+Estimació del model lineal
 
-```{r estimaModelo}
-#MODEL FIT
+```{r estimaModel}
+# Estimació del model (F)
 fit1 <- lmFit(filteredData, design)
 fit.main1 <- contrasts.fit(fit1, cont.matrix1)
 fit.main1 <- eBayes(fit.main1)
 ```
 
 
-El resultado del análisis se encuentra en el objeto `lmfit` y puede extraerse con la instrucción "topTable".
+El resultat de l'anàlisi es troba a l'objecte `lmfit` i es pot extreure amb la 
+instrucció *topTable*.
 
-Recordemos que la instrucción `topTable` puede aplicar un filtro automàtico, basado en dos criterios distintos, "log fold change" y "p.value". En este caso retenemos únicamente los genes con un "log-fold-change" mayor de 3 y un p-valor ajustado inferior a 0.05
+La instrucció `topTable` pot aplicar un filtre automàtic. En el nostra cas 
+ens quedarem únicament els gens amb un "log-fold-change" major que 1 i un 
+p-valor ajustat inferior a 0.05.
 
 ```{r results1}
-topTab <-  topTable (fit.main1, number=nrow(fit.main1), coef="Hypotension.vs.Control", adjust="fdr",lfc=1, p.value=0.05)
+# Fem servir l'instrucció "topTable"
+topTab <-  topTable (fit.main1, number=nrow(fit.main1), coef="Hypotension.vs.Control", 
+                     adjust="fdr",lfc=1, p.value=0.05)
+# Veiem la seva dimensió
 dim(topTab)
+# Observem els (primers) resultats
 head(topTab)
 ```
 
 # Resultats 
 
 
-## Anotación de los resultados
+## Anotació dels resultats
 
-Obtenemos los identificadores ENTREZ y GENE SYMBOL correspondientes a los probesets (identificados con los id de la compañía que produjo el microarray) que aparecen en la tabla de resultados.
+Obtenim els identificadors ENTREZ, SYMBOL i GENENAME corresponents als
+probesets (identificats amb els id de la companyia que va produir el microarray)
+que apareixen a la taula de resultats. 
+ 
+En el nostre cas la companyia és *Affymetrix* i segons les seves expecificacions
+per els microarrays que s'han fet servir *(Platform GPL0341)* la base de dades 
+que hem de fer servir és `rae230a.db`.
 
 ```{r}
 require(rae230a.db)
+# Veiem quins tipus d'identificadors 
 keytypes(rae230a.db)
-anotaciones <- AnnotationDbi::select (rae230a.db, keys=rownames(filteredData), columns=c("ENTREZID", "SYMBOL", "GENENAME"))
+# Guardem les anotacions
+anotacions <- AnnotationDbi::select (rae230a.db, keys=rownames(filteredData), 
+                                      columns=c("ENTREZID","SYMBOL","GENENAME"))
 ```
 
 Añadimos las columnas de anotaciones a la "topTable".
@@ -336,12 +385,13 @@ Aunque esto se puede hacer de muchas formas utilizamos la metodología de concat
 library(dplyr)
 topTabAnotada <- topTab %>%  
   mutate(PROBEID=rownames(topTab)) %>%
-  left_join(anotaciones) %>% 
+  left_join(anotacions) %>% 
   arrange(P.Value) %>%
   select(7,8,9, 1:6, 10)
 
 head(topTabAnotada)
 ```
+
 
 ## Visualización de resultados (1): Volcano Plot
 
@@ -391,7 +441,7 @@ pdf(file.path(resultsDir,"Heatmap.pdf"))
 heatmap.2(selectedData,
           Rowv=TRUE,
           Colv=TRUE,
-          main="HeatMap Induced.vs.WT FC>=3",
+          main="HeatMap Induced.vs.WT FC>=1",
           scale="row",
           col=my_palette,
           sepcolor="white",
@@ -401,12 +451,73 @@ heatmap.2(selectedData,
           key=TRUE,
           keysize=1.5,
           density.info="histogram",
-          ColSideColors=c(rep("red",4),rep("blue",4)),
+          ColSideColors=c(rep("blue",5),rep("red",4)),
           tracecol=NULL,
           srtCol=30)
 dev.off()
 ```
 
+# Análisis de significación biológica
+
+A título ilustrativo realizaremos un análisis de enriquecimiento ("Over-Representation Analysis") a partir de la lista de genes seleccionados como diferencialmente expresados.
+
+Para el análisis necesitamos dos colecciones de genes
+
+-   La lista seleccionada
+-   El *universo de genes* es decir todos los genes que se han incluído en el análisis (hay quien pone todos los del chip o todos los del genoma).
+
+La mayoría de programas necesitan que los identificadores de los genes sean en formato "ENTREZ" por lo que prepararemos ambas listas a la vez (aunque ya teníamos la de los genes seleccionados).
+
+```{r}
+require(rae230a.db)
+probesUniverse <- rownames(filteredData)
+entrezUniverse<- AnnotationDbi::select(rae230a.db, probesUniverse, "ENTREZID")$ENTREZID
+
+topProbes <-   rownames(selectedData)
+entrezTop<- AnnotationDbi::select(rae230a.db, topProbes, "ENTREZID")$ENTREZID
+
+# Eliminamos posibles duplicados
+
+topGenes <- entrezTop[!duplicated(entrezTop)]
+entrezUniverse <- entrezUniverse[!duplicated(entrezUniverse)]
+```
+
+Se pueden utilizar muchos paquetes para realizar un análisis de enriquecimiento genético. Cada uno de ellos realiza un análisis ligeramente diferente, pero las ideas subyacentes son las mismas.
+
+En este ejemplo usamos "GOstats", que fue uno de los primeros paquetes disponibles en Bioconductor para realizar análisis de enriquecimiento.
+
+La idea para usarlo es bastante simple: necesitamos crear un tipo especial de objeto llamado "Hiperparámetro" que puede ser de clase:
+
+-   `GOHyperGParams` para hacer un análisis basado en la Gene Ontology,
+-   `KEGGHyperGParams` para hacer un análisis basado en la base de datos REACTOMA,
+-   `PFAMHyperGParams` para basar el análisis en la base de daos PFAM.
+
+```{r createHyperparameter}
+library(GOstats)
+
+# This parameter has an "ontology" argument. It may be "BP", "MF" or "CC"
+# Other arguments are taken by default. Check the help for more information.
+
+GOparams = new("GOHyperGParams",
+    geneIds=topGenes, universeGeneIds=entrezUniverse,
+    annotation="rae230a.db", ontology="BP",
+    pvalueCutoff=0.01)
+```
+
+```{r runORAnalysis}
+GOhyper = hyperGTest(GOparams)
+```
+
+```{r summarizeORAesults}
+head(summary(GOhyper))
+dim(summary(GOhyper))
+```
+
+```{r ORAreport}
+# Creamos un informe html con los resultados
+GOfilename =file.path(resultsDir, "GOResults.html")
+htmlReport(GOhyper, file = GOfilename, summary.args=list("htmlLinks"=TRUE))
+```
 
 # Discusió
 
