@@ -226,7 +226,7 @@ plot(clust.euclid.average, labels=sampleNames, main="Hierarchical clustering del
 #GDS data", cex=0.7,  hang=-1)
 ```
 
-#### Anàlisis de Components Principals (PCA)
+#### Anàlisi de Components Principals (PCA)
 
 ```{r graficsQualitat3}
 # Anàlisis de Components Principals 
@@ -339,12 +339,12 @@ head(filteredData)
 ## Selecció de gens
 
 Construïm una matriu de disseny i una de contrast per l'anàlisis amb un model 
-lineal.
+lineal. Farem servir el paquet *limma*.
 
 **Matriu de disseny**
 
 ```{r linearModel}
-library(limma)
+require(limma)
 treat <- pData(filteredEset)$groups
 lev <- factor(treat, levels = unique(treat))
 design <-model.matrix(~0+lev)
@@ -591,11 +591,26 @@ ego <- enrichGO(gene = as.integer(topGenes), # selgenes,
 head(ego, n=10)
 ```
 
-
-
 # Discusió
 
+En l'anàlisi exploratori veiem que en el boxplot la distribució entre els grups 
+abans de normalitzar és bastant homogènia.  
+L’agrupació jeràrquica no ens ha estat de gran utilitat atès que no ens ha 
+agrupat gaire bé els diferents conjunts de rates.  
+Tampoc en l'Anàlisi de Components Principals veiem que ens separi de forma els 
+dos grups d’estudi.  
+Un cop normalitzades les dades hem fet un filtratge dels gens. Amb aquest hem 
+extret la matriu de dades amb la qual hem construït la matriu de dades i de 
+contrast. Amb aquestes hem fet l’estimació amb un model lineal.   
 
+Dins dels gens que hem retingut d’aquest model ens hem quedat amb ens han 
+aparegut 2 dels que tenen funcions reguladores en el sistema cardiovascular, 
+*Igfbp1, Xdh* tal i com anomenen en l’estudi els autors:
+
+*«Sis gens coneguts funcionalment (Igfbp1, Xdh, Sult1a1, Mawbp, Por i Gstm1) i 
+dues seqüències expressades (BI277460 i AI411345) es van regular 
+significativament. Quatre d'aquests gens (Igfbp1, Xdh, Por i Gstm1) tenen 
+funcions ben caracteritzades en el sistema cardiovascular.»*
 
 # Referències
 
