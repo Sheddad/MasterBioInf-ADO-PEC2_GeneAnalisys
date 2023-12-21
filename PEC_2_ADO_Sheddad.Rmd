@@ -74,6 +74,9 @@ per donar resposta al problema biològic que plantegen els autors.
 Finalment, presentarem en aquest informe els resultats obtinguts i valorarem la
 qualitat de les dades així com les diferents tècniques emprades.
 
+Es pot accedir al [repositori](https://github.com/Sheddad/MasterBioInf-ADO-PEC2_GeneAnalisys.git) 
+de la pràctica.
+
 # Mètodes
 
 En l’estudi es va induir hipotensió aguda en 4 rates normotenses, suposant que 
@@ -120,13 +123,13 @@ installifnot("gplots")
 installifnot("GOstats")
 installifnot("GEOquery")
 installifnot("clusterProfiler")
+installifnot("kableExtra")
 ```
 
 ## Lectura de les dades {.tabset .tabset-fade .tabset-pills}  
 
 ### Dades crues (Raw Data)
 
- 
 Les mostres estan agrupades en dos grups, les rates a què se'ls ha induït
 una hipotensió aguda (Hypotension) i als qui no (Control).
 Emmagatzemem aquesta informació al fitxer *targets.csv*.
@@ -150,7 +153,7 @@ fitxer *dades*.
 
 Llegim els arxius .CEL fent servir la informació continguda en el data frame
 *targets*.  
-Gurdarem les dades en l'objecte *rawData* que és del tipus *ExpressionFeatureSet*,
+Guardarem les dades en l'objecte *rawData* que és del tipus *ExpressionFeatureSet*,
 un tipus especial *d'ExpressionSet*.
 
 
@@ -167,7 +170,7 @@ Tot i que he decidit fer tot l'estudi amb les dades crues (raw data) hi ha
 l'opció d'extreure les dades directament de la base de dades *Gene Expression 
 Omnibus* [GEO](https://www.ncbi.nlm.nih.gov/geo/) fent servir la llibreria 
 *GEOquery* de *Biobase (Bioconductor)*.  
-Una de les ventatges és que aquestes dades ja estan normalitzades.  
+Un dels avantatges és que aquestes dades ja estan normalitzades.  
   
 Aquesta és la manera d'extreure les dades amb l'identificador GDS.
 
@@ -252,8 +255,7 @@ plotPCA(exprs(rawData), labels=sampleNames, dataDesc="raw data", colors=sampleCo
 #plotPCA(exprs(gdsEset), labels=sampleNames, dataDesc="GDS Eset", colors=sampleColor,
 #        formapunts=c(rep(16,4),rep(17,4)), myCex=0.6)
 ```
-
-
+  
 Guardem els anàlisi de qualitat en un arxiu PDF en el directori *results*  
 
 ```{r graficsQualitatAPDF}
@@ -269,11 +271,10 @@ plotPCA(exprs(rawData), labels=sampleNames, dataDesc="raw data", colors=sampleCo
 dev.off()
 
 ```
-
+  
 
 ### Amb el paquet `arrayQualityMetrics`
-
-
+  
 Creem el directori *QC_RawData*  on tindrem els resultats de l'anàlisis de 
 qualitat fet per "arrayQualityMetrics"
 El control de qualitat amb *arrayQualityMetrics* consumeix cert temps pel que 
@@ -293,8 +294,8 @@ if(rerun){
 }
 ```
 
-## Normalització
-
+## Normalització  
+  
 Fem servir el mètode RMA per normalitzar les dades Raw Data.  
 
 ```{r normalitzacio}
@@ -303,16 +304,17 @@ myEset <- rma(rawData)
 write.exprs(myEset, file.path(resultsDir, "NormData.txt"))
 myEset
 ```
-
+  
 Cal recordad que les dades descarregades amb GDS ja estan normalitzades.
 
-## Filtratge
+## Filtratge  
 
-
+Procedim a fer el filtratge amb la base de dades corresponent.
+  
 ```{r filtratge}
 require(genefilter)
-# Farem la base de dades rae230a.db que és la que correspon a la plataforma 
-# GPL0341 d'Affymetrix (microarray)
+# Farem servir la base de dades rae230a.db que és la que correspon a la 
+# plataforma GPL0341 d'Affymetrix (microarray)
 annotation(myEset) <- "rae230a.db"
 eset_filtered <- nsFilter(myEset, var.func=IQR,
          var.cutoff=0.75, var.filter=TRUE, require.entrez = TRUE,
@@ -324,7 +326,7 @@ print(eset_filtered)
 print(eset_filtered$eset)
 ```
 
-Extraiem la matriu de dades filtrades que farem servir per continuar l'estudi.
+Extraiem la matriu de dades filtrades que farem servir per continuar l'estudi.  
 
 ```{r Dadesflitrades}
 filteredEset <- eset_filtered$eset
@@ -334,10 +336,9 @@ colnames(filteredData) <- pData(filteredEset)$ShortName
 # Visualitzem les primeres files
 head(filteredData)
 ```
-
-
-## Selecció de gens
-
+  
+## Selecció de gens  
+  
 Construïm una matriu de disseny i una de contrast per l'anàlisis amb un model 
 lineal. Farem servir el paquet *limma*.
 
@@ -447,15 +448,17 @@ print(xtable(topTab,align="lllllll"),type="html",html.table.attributes="",
 # d'anotacions rae230a.db
 genenames <- AnnotationDbi::select(rae230a.db, 
                     rownames(fit.main1), c("SYMBOL"))$SYMBOL
+# Dibuixem el volcano plot i ens dona el nom dels 10 més diferencialment expressats
 volcanoplot(fit.main1, highlight=10, names=genenames, 
             main = paste("Gens diferencialment expresats", colnames(cont.matrix1), sep="\n"))
-abline(v = c(-3, 3))
+abline(v = c(-1, 1))
 
 # El guardem a un pdf
 pdf(file.path(resultsDir,"VolcanoPlot.pdf"))
+# Dibuixem el volcano plot i ens dona el nom dels 10 més diferencialment expressats
 volcanoplot(fit.main1, highlight = 10, names = genenames, 
             main = paste("Gens diferencialment expresats", colnames(cont.matrix1), sep = "\n"))
-abline(v = c(-3, 3))
+abline(v = c(-1, 1))
 dev.off()
 ```
 
@@ -506,40 +509,44 @@ heatmap.2(selectedData,
 dev.off()
 ```
 
-## Anàlisi de significació biològica
+## Anàlisi de significació biològica {.tabset .tabset-fade .tabset-pills}  
 
-A títol il·lustratiu farem una anàlisi d'enriquiment ("Over-Representation Analysis") a partir de la llista de gens seleccionats com a diferencialment expressats.
+A títol il·lustratiu farem una anàlisi d'enriquiment ("Over-Representation 
+Analysis") a partir de la llista de gens seleccionats com a 
+diferencialment expressats.
 
-Per a l'anàlisi necessitem dues col·leccions de gens
-
-- La llista seleccionada
-- L'univers de gens és a dir tots els gens que s'han inclòs en l'anàlisi (hi ha qui posa tots els del xip o tots els del genoma).
-
-La majoria de programes necessiten que els identificadors dels gens siguin en format "ENTREZ" per la qual cosa prepararem les dues llistes alhora (encara que ja teníem la dels gens seleccionats).
+Per a l'anàlisi necessitem dues col·leccions de gens.
 
 ```{r}
 require(rae230a.db)
+# Per a l'anàlisi necessitem dues col·leccions de gens
 probesUniverse <- rownames(filteredData)
-entrezUniverse<- AnnotationDbi::select(rae230a.db, probesUniverse, "ENTREZID")$ENTREZID
+entrezUniverse<- AnnotationDbi::select(rae230a.db, probesUniverse, 
+                                       "ENTREZID")$ENTREZID
 
 topProbes <-   rownames(selectedData)
 entrezTop<- AnnotationDbi::select(rae230a.db, topProbes, "ENTREZID")$ENTREZID
 
-# Eliminamos posibles duplicados
+# Eliminem posibles duplicats
 
 topGenes <- entrezTop[!duplicated(entrezTop)]
 entrezUniverse <- entrezUniverse[!duplicated(entrezUniverse)]
 ```
 
-Se pueden utilizar muchos paquetes para realizar un análisis de enriquecimiento genético. Cada uno de ellos realiza un análisis ligeramente diferente, pero las ideas subyacentes son las mismas.
+Es poden utilitzar molts paquets per fer una anàlisi d'enriquiment genètic.
 
-En este ejemplo usamos "GOstats", que fue uno de los primeros paquetes disponibles en Bioconductor para realizar análisis de enriquecimiento.
+En el nostre cas farem servir dos:  
+-**GOstats** que ens permet fer una anàlisi d'enriquiment genètic.  
+-**clusterProfiler** que ens permet fer una anàlisi d'enriquiment de conjunts 
+de gens (Gene Set Enrichment Analysis - GSEA).  
+  
+### GOstats
+  
+Per fer servir fem farem servir "GOstats" necessitem crear un tipus especial 
+d'objecte anomenat "Hiperparàmetre" que pot ser de tres classes. 
 
-La idea para usarlo es bastante simple: necesitamos crear un tipo especial de objeto llamado "Hiperparámetro" que puede ser de clase:
-
--   `GOHyperGParams` para hacer un análisis basado en la Gene Ontology,
--   `KEGGHyperGParams` para hacer un análisis basado en la base de datos REACTOMA,
--   `PFAMHyperGParams` para basar el análisis en la base de daos PFAM.
+Nosaltres farem servir la classes `GOHyperGParams` per fer una anàlisi basada en
+la Gene Ontology.
 
 ```{r createHyperparameter}
 require (GOstats)
@@ -575,20 +582,80 @@ GOfilename =file.path(resultsDir, "GOResults.html")
 htmlReport(GOhyper, file = GOfilename, summary.args=list("htmlLinks"=TRUE))
 ```
 
-```{r clusterProfiler}
-library(clusterProfiler)
+### GESEA amb clusterProfiler
 
-## Run GO enrichment analysis 
+Gene Set Enrichment Analysis(GESEA) amb el paquet clusterProfiler
 
-ego <- enrichGO(gene = as.integer(topGenes), # selgenes, 
-                # universe = entrezUniverse, # universe = all_genes,
-                keyType = "ENTREZID",
-                OrgDb = rae230a.db, 
-                ont = "BP", 
-                pAdjustMethod = "BH", 
-                qvalueCutoff = 0.1, 
-                readable = TRUE)
-head(ego, n=10)
+Si, en comptes de confiar en les llistes de gens, decidim utilitzar tots els 
+gens de la matriu i confrontar-los amb conjunts seleccionats de gens, podem 
+utilitzar l'enfocament de l'anàlisi d'enriquiment de conjunts de gens.
+
+```{r clusterProfiler_1}
+entrezIDs <- AnnotationDbi::select(rae230a.db, rownames(topTab), c("ENTREZID"))
+topTab2<- cbind( PROBEID= rownames(topTab), topTab)
+geneList  <- merge(topTab2, entrezIDs, by="PROBEID")
+
+#ordena per logFC absolut per eliminar els duplicats amb el logFC absolut més petit
+geneList <- geneList[order(abs(geneList$logFC), decreasing=T),]
+geneList <- geneList[ !duplicated(geneList$ENTREZ), ] 
+# tornar a ordenar basat en logFC per estar preparat per a GSEA
+geneList <- geneList[order(geneList$logFC, decreasing=T),]
+genesVector <- geneList$logFC
+names(genesVector) <- geneList$ENTREZ
+# Llavor per reproduir resultats random
+set.seed(123)
+
+require(clusterProfiler)
+gseResulti <- gseKEGG(geneList = genesVector,
+                      organism = "rno",
+                      keyType = "kegg",
+                      exponent = 1,
+                      minGSSize = 10, maxGSSize = 500,
+                      pvalueCutoff = 0.01,
+                      pAdjustMethod = "BH",
+                      verbose = TRUE,
+                      use_internal_data = FALSE,
+                      seed = TRUE,
+                      eps=0,
+                      by = "fgsea"
+                )
+```
+
+Donat que no hem obtingut cap resultat la següent part de codi que ens donaria 
+de forma esquemàtica els resultats, no l'executem
+
+```{r clusterProfiler_2, eval=FALSE}
+
+require(kableExtra)
+gsea.result <- setReadable(gseResulti, OrgDb = rae230a.db, keyType ="ENTREZID" )
+gsea.result.df <- as.data.frame(gsea.result)
+print(kable(gsea.result.df[,c("Description","setSize","NES","p.adjust")])%>% scroll_box(height = "500px"))
+```
+
+```{r clusterProfiler_3, eval=FALSE}
+
+require(ggplot2)
+# for (i in 1:length(files)){
+#   cat("\nComparison: ", namesC[i],"\n")
+   cat("DOTPLOT\n")
+#   if(nrow(keggResultsList[[i]]) > 0){
+ if(nrow(gseResulti) > 0){
+   p<- dotplot(gseResulti, showCategory = 20, font.size = 15,
+            title =paste("Enriched Pathways\n", comparisonName ,
+            split=".sign") + facet_grid(.~.sign))
+   plot(p)
+   cat("\nENRICHMENT MAP\n")
+   em<- emapplot(gseResulti)
+   plot(em)
+   #guardem en pdf
+   pdf(file = paste0("KEGGplots.",comparisonName,".pdf"), 
+                        width = 14, height = 14)
+   print(p)
+   print(em)
+   dev.off()
+   }else{
+      cat("\nNo enriched terms found\n")
+ }
 ```
 
 # Discusió
@@ -597,22 +664,35 @@ En l'anàlisi exploratori veiem que en el boxplot la distribució entre els grup
 abans de normalitzar és bastant homogènia.  
 L’agrupació jeràrquica no ens ha estat de gran utilitat atès que no ens ha 
 agrupat gaire bé els diferents conjunts de rates.  
-Tampoc en l'Anàlisi de Components Principals veiem que ens separi de forma els 
-dos grups d’estudi.  
+Tampoc en l'Anàlisi de Components Principals veiem que ens separi de forma clara
+els dos grups d’estudi.  
 Un cop normalitzades les dades hem fet un filtratge dels gens. Amb aquest hem 
 extret la matriu de dades amb la qual hem construït la matriu de dades i de 
 contrast. Amb aquestes hem fet l’estimació amb un model lineal.   
 
-Dins dels gens que hem retingut d’aquest model ens hem quedat amb ens han 
-aparegut 2 dels que tenen funcions reguladores en el sistema cardiovascular, 
-*Igfbp1, Xdh* tal i com anomenen en l’estudi els autors:
+Dins dels gens que hem retingut d’aquest model ens han aparegut 2 dels que tenen
+funcions reguladores en el sistema cardiovascular, *Igfbp1, Xdh* tal i com 
+exposen en l’estudi els autors:
 
 *«Sis gens coneguts funcionalment (Igfbp1, Xdh, Sult1a1, Mawbp, Por i Gstm1) i 
 dues seqüències expressades (BI277460 i AI411345) es van regular 
 significativament. Quatre d'aquests gens (Igfbp1, Xdh, Por i Gstm1) tenen 
 funcions ben caracteritzades en el sistema cardiovascular.»*
 
+Per últim hem fet un anàlisi d'enriquiment genètic, que tot i ser didàctic,
+els resultats han estat més aviat pobres.
+  
 # Referències
 
-[@GDS1251]
+[@GDS1251]  
+
+
+  
+  
+
+
+
+
+
+
 
