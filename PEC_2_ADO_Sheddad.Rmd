@@ -6,10 +6,6 @@ params:
   printcode:
     label: "Display Code:"
     value: TRUE # or set it to FALSE
-  data:
-    label: "Raw data .fastq:"
-    value: S07_Ves02_read1.fastq
-    input: file
 output:
    html_document:
     code_folding: hide
@@ -43,14 +39,48 @@ opts_knit$set(width=75)
 
 # Introducció i Objectius
 
-L'objectiu d'aquesta activitat és fer una introducció de forma pràctica a l'ús, d'una banda, del programari Galaxy i, de l'altra, de Bioconductor, el projecte de codi obert que proporciona eines i recursos per a l'anàlisi i visualització de dades en bioinformàtica . En el nostre cas farem servir Bioconductor i R per analitzar dades de NGS.
+Amb aquesta activitat es pretén fer una introducció de forma pràctica a l'ús de 
+R per a la gestió de dades de microarrays.  
+Força dades òmiques, un cop processades, es poden emmagatzemar com a dades 
+numèriques que es poden representar com "matriu de dades" en la que els gens 
+(variables) estan en files i les mostres (individus) estan en columnes.  
+Tot i això, el conjunt d’aquestes dades òmiques tenen més informació que la que 
+es pot emmagatzemar en una taula com ara dades d'anotacions, diverses 
+covariables o informació sobre l'experiment.  
 
-Per això descarregarem i manipularem unes dades de NGS, les explorarem per saber-ne l'estructura i realitzarem un control de qualitat.
+La classe **ExpressionSet** del paquet [Bioconductor](https://www.bioconductor.org/) 
+de R, permet emmagatzemar i accedir a dades de microarrays de manera que podem 
+gestionar simultàniament totes aquestes peces d'informació; és a dir, ens ajuda 
+a simplificar el procés i evitar errors derivats de la falta de coherència entre
+les parts.  
 
-Finalment, presentarem en aquest informe els resultats obtinguts i valorarem la qualitat de les dades així com les diferents tècniques emprades.
+Les dades per aquesta pràctica les hem obtingut de la base de dades 
+[GEO](https://www.ncbi.nlm.nih.gov/geo/) ( Gene Expression Omnibus), un 
+repositori públic per a una àmplia gamma de dades experimentals que inclouen 
+experiments basats en microarrays que mesuren l'ARNm, l'ADN genòmic i 
+l'abundància de proteïnes, així com tècniques sense matriu com l'anàlisi en 
+sèrie de l'expressió gènica (SAGE), dades proteòmiques d'espectrometria de 
+masses i dades de seqüenciació d'alt rendiment.  
+
+L’estudi que hem escollit és GDS1251, «A physiogenomic approach to study the 
+regulation of blood pressure» que tal i com expliquen els propis autors 
+«l'objectiu de aquests estudi és establir un model de cribratge fisiogenòmic per
+a gens expressats de manera diferencial en la regulació de la pressió arterial 
+que pogui donar una pista sobre nous mecanismes vasoreguladors.»  
+
+Amb les dades d’aquest estudi farem una anàlisi bàsica de dades de microarrays 
+per donar resposta al problema biològic que plantegen els autors.
+
+Finalment, presentarem en aquest informe els resultats obtinguts i valorarem la
+qualitat de les dades així com les diferents tècniques emprades.
 
 # Mètodes
 
+En l’estudi es va induir hipotensió aguda en 4 rates normotenses, suposant que 
+els sistemes vasoreguladors contrarestaran la hipotensió. L'anàlisi del 
+transcriptoma de microarrays es va realitzar a partir dels ronyons 6 hores 
+després de la inducció de la hipotensió aguda. Els resultats es van confirmar 
+mitjançant PCR en temps real. Es van fer servir 5 rates com a control.
 
 ## Preparació del sistema: directoris i paquets
 
@@ -66,7 +96,6 @@ resultsDir <- file.path(workingDir, "results")
 
 Instalem els paquets requerits en cas que no ho estiguin.
 Per tal que no ho faci cada vegada farme servir la funció **installifnot**. 
-REF:
 
 ```{r paquets, eval = TRUE}
 # De moment no l'executem perquè no ens ho faci cada vegada
@@ -98,7 +127,7 @@ installifnot("clusterProfiler")
 ### Dades crues (Raw Data)
 
  
-Les mostres estan agrupades en dos grups, els ratolins a què se'ls ha induït
+Les mostres estan agrupades en dos grups, les rates a què se'ls ha induït
 una hipotensió aguda (Hypotension) i als qui no (Control).
 Emmagatzemem aquesta informació al fitxer *targets.csv*.
 
@@ -349,17 +378,17 @@ El resultat de l'anàlisi es troba a l'objecte `lmfit` i es pot extreure amb la
 instrucció *topTable*.
 
 La instrucció `topTable` pot aplicar un filtre automàtic. En el nostra cas 
-ens quedarem únicament els gens amb un "log-fold-change" major que 1 i un 
+ens quedarem únicament els gens amb un "log-fold-change" major que 0 i un 
 p-valor ajustat inferior a 0.05.
 
 ```{r results1}
 # Fem servir l'instrucció "topTable"
 topTab <-  topTable (fit.main1, number=nrow(fit.main1), coef="Hypotension.vs.Control", 
-                     adjust="fdr",lfc=1, p.value=0.05)
+                     adjust="fdr",lfc=0, p.value=0.05)
 # Veiem la seva dimensió
 dim(topTab)
-# Observem els (primers) resultats
-head(topTab)
+# Observem els 10 primers resultats
+head(topTab, n=10)
 ```
 
 # Resultats 
@@ -397,8 +426,8 @@ topTabAnotada <- topTab %>%
   left_join(anotacions) %>% 
   arrange(P.Value) %>%
   select(7,8,9, 1:6, 10)
-# Visualitzem els (primers) resultatss
-head(topTabAnotada)
+# Visualitzem els 10 primers resultatss
+head(topTabAnotada, n=10)
 ```
 
 Escribin el resultat en un arxiu de text o a un arxiu html.
@@ -477,7 +506,7 @@ heatmap.2(selectedData,
 dev.off()
 ```
 
-# Anàlisi de significació biològica
+## Anàlisi de significació biològica
 
 A títol il·lustratiu farem una anàlisi d'enriquiment ("Over-Representation Analysis") a partir de la llista de gens seleccionats com a diferencialment expressats.
 
@@ -538,7 +567,6 @@ head(summary(GOhyper), n=10)
 dim(summary(GOhyper))
 ```
 
-
 Guardem els resultats en un informe html.  
 
 ```{r ORAreport}
@@ -566,6 +594,8 @@ head(ego, n=10)
 
 
 # Discusió
+
+
 
 # Referències
 
