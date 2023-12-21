@@ -43,6 +43,12 @@ opts_knit$set(width=75)
 
 # Introducció i Objectius
 
+L'objectiu d'aquesta activitat és fer una introducció de forma pràctica a l'ús, d'una banda, del programari Galaxy i, de l'altra, de Bioconductor, el projecte de codi obert que proporciona eines i recursos per a l'anàlisi i visualització de dades en bioinformàtica . En el nostre cas farem servir Bioconductor i R per analitzar dades de NGS.
+
+Per això descarregarem i manipularem unes dades de NGS, les explorarem per saber-ne l'estructura i realitzarem un control de qualitat.
+
+Finalment, presentarem en aquest informe els resultats obtinguts i valorarem la qualitat de les dades així com les diferents tècniques emprades.
+
 # Mètodes
 
 
@@ -84,6 +90,7 @@ installifnot("xtable")
 installifnot("gplots")
 installifnot("GOstats")
 installifnot("GEOquery")
+installifnot("clusterProfiler")
 ```
 
 ## Lectura de les dades {.tabset .tabset-fade .tabset-pills}  
@@ -377,23 +384,34 @@ anotacions <- AnnotationDbi::select (rae230a.db, keys=rownames(filteredData),
                                       columns=c("ENTREZID","SYMBOL","GENENAME"))
 ```
 
-Añadimos las columnas de anotaciones a la "topTable".
-
-Aunque esto se puede hacer de muchas formas utilizamos la metodología de concatenar las instrucciones usando "pipes" (%\>%) y funciones del paquete `dplyr` que simplifican la lectura.
+Afegim les columnes d'anotacions a la topTable. Utilitzem funcions del paquet
+`dplyr` i "pipes" (%\>%) per concatenar les instruccions.
+La columna "GENENAME" la afegim al final de la taula per a una lectura més 
+còmoda.
 
 ```{r}
-library(dplyr)
+require(dplyr)
+# Afegim la columna "GENENAME"
 topTabAnotada <- topTab %>%  
   mutate(PROBEID=rownames(topTab)) %>%
   left_join(anotacions) %>% 
   arrange(P.Value) %>%
   select(7,8,9, 1:6, 10)
-
+# Visualitzem els (primers) resultatss
 head(topTabAnotada)
 ```
 
+Escribin el resultat en un arxiu de text o a un arxiu html.
 
-## Visualización de resultados (1): Volcano Plot
+```{r}
+write.csv2(topTabAnotada, file= file.path(resultsDir,"Gens_seleccionats.csv"))
+print(xtable(topTab,align="lllllll"),type="html",html.table.attributes="",
+      file=file.path(resultsDir,"Gens_seleccionats.html"))
+```
+
+
+## Visualització de resultats (1): Volcano Plot
+
 
 ```{r volcanoPlot}
 # Anomenem amb SYMBOL els gens del model. Fem servir la base de dades 
@@ -412,13 +430,13 @@ abline(v = c(-3, 3))
 dev.off()
 ```
 
-## Visualización de resultados (2): Heatmaps
+## Visualizació de resultats (2): Heatmaps
 
 ```{r heatmap}
 selectedRows <- rownames(filteredData) %in% rownames(topTab)
 selectedData <- filteredData[selectedRows,]
 
-#HEATMAP PLOT
+# Heatmap Plot
 my_palette <- colorRampPalette(c("blue", "red"))(n = 299)
 library(gplots)
 heatmap.2(selectedData,
@@ -438,6 +456,8 @@ heatmap.2(selectedData,
           tracecol=NULL,
           srtCol=30)
 pdf(file.path(resultsDir,"Heatmap.pdf"))
+
+# El guardem a un pdf
 heatmap.2(selectedData,
           Rowv=TRUE,
           Colv=TRUE,
@@ -457,16 +477,16 @@ heatmap.2(selectedData,
 dev.off()
 ```
 
-# Análisis de significación biológica
+# Anàlisi de significació biològica
 
-A título ilustrativo realizaremos un análisis de enriquecimiento ("Over-Representation Analysis") a partir de la lista de genes seleccionados como diferencialmente expresados.
+A títol il·lustratiu farem una anàlisi d'enriquiment ("Over-Representation Analysis") a partir de la llista de gens seleccionats com a diferencialment expressats.
 
-Para el análisis necesitamos dos colecciones de genes
+Per a l'anàlisi necessitem dues col·leccions de gens
 
--   La lista seleccionada
--   El *universo de genes* es decir todos los genes que se han incluído en el análisis (hay quien pone todos los del chip o todos los del genoma).
+- La llista seleccionada
+- L'univers de gens és a dir tots els gens que s'han inclòs en l'anàlisi (hi ha qui posa tots els del xip o tots els del genoma).
 
-La mayoría de programas necesitan que los identificadores de los genes sean en formato "ENTREZ" por lo que prepararemos ambas listas a la vez (aunque ya teníamos la de los genes seleccionados).
+La majoria de programes necessiten que els identificadors dels gens siguin en format "ENTREZ" per la qual cosa prepararem les dues llistes alhora (encara que ja teníem la dels gens seleccionats).
 
 ```{r}
 require(rae230a.db)
@@ -493,7 +513,7 @@ La idea para usarlo es bastante simple: necesitamos crear un tipo especial de ob
 -   `PFAMHyperGParams` para basar el análisis en la base de daos PFAM.
 
 ```{r createHyperparameter}
-library(GOstats)
+require (GOstats)
 
 # This parameter has an "ontology" argument. It may be "BP", "MF" or "CC"
 # Other arguments are taken by default. Check the help for more information.
@@ -504,20 +524,46 @@ GOparams = new("GOHyperGParams",
     pvalueCutoff=0.01)
 ```
 
+Fem anar l'anàlisis  
+
 ```{r runORAnalysis}
+# Fem l'anàlisis  
 GOhyper = hyperGTest(GOparams)
 ```
 
+Extraiem resultats del summary.  
+
 ```{r summarizeORAesults}
-head(summary(GOhyper))
+head(summary(GOhyper), n=10)
 dim(summary(GOhyper))
 ```
 
+
+Guardem els resultats en un informe html.  
+
 ```{r ORAreport}
-# Creamos un informe html con los resultados
+# Creem un informe html amb els resultats
 GOfilename =file.path(resultsDir, "GOResults.html")
 htmlReport(GOhyper, file = GOfilename, summary.args=list("htmlLinks"=TRUE))
 ```
+
+```{r clusterProfiler}
+library(clusterProfiler)
+
+## Run GO enrichment analysis 
+
+ego <- enrichGO(gene = as.integer(topGenes), # selgenes, 
+                # universe = entrezUniverse, # universe = all_genes,
+                keyType = "ENTREZID",
+                OrgDb = rae230a.db, 
+                ont = "BP", 
+                pAdjustMethod = "BH", 
+                qvalueCutoff = 0.1, 
+                readable = TRUE)
+head(ego, n=10)
+```
+
+
 
 # Discusió
 
